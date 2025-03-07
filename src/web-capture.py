@@ -12,12 +12,13 @@ URLS = [
 
 FULL_SCREENSHOT = True
 CAPTURE_HEIGHT = 6000
+SNAPSHOT_DIR = "snapshots"
 SCREENSHOT_DIR = "screenshots"
 HTML_DIR = "html"
 
 # Create directories if they don't exist
-os.makedirs(SCREENSHOT_DIR, exist_ok=True)
-os.makedirs(HTML_DIR, exist_ok=True)
+# os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+# os.makedirs(HTML_DIR, exist_ok=True)
 
 def hash_file(filepath: str) -> str:
     # Return MD5 hash of the file
@@ -25,7 +26,6 @@ def hash_file(filepath: str) -> str:
         return hashlib.md5(f.read()).hexdigest()
 
 def get_latest_screenshot_hash(domain_dir: str, curr_file: str) -> str:
-
     # List all .png files in the directory except the current one
     files = [
         f for f in os.listdir(domain_dir)
@@ -39,8 +39,6 @@ def get_latest_screenshot_hash(domain_dir: str, curr_file: str) -> str:
     latest_file = os.path.join(domain_dir, files[-1])
     return hash_file(latest_file)
 
-
-
 def main():
     for url in URLS:
         print(f"\n[INFO] Handling URL: {url}")
@@ -51,8 +49,11 @@ def main():
         if domain.startswith("www."):
             domain = domain[4:]
         folder_name = domain.replace(".", "_")
-        domain_dir = os.path.join(SCREENSHOT_DIR, folder_name)
-        os.makedirs(domain_dir, exist_ok=True)
+
+        # create screenshot and html directories for the domain if they don't exist
+        screenshot_folder = os.path.join(SNAPSHOT_DIR, folder_name, SCREENSHOT_DIR)
+        html_folder = os.path.join(SNAPSHOT_DIR, folder_name, HTML_DIR)
+
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -101,7 +102,7 @@ def main():
             # Create unique filename with domain and current date & time
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             screenshot_filename = f"{folder_name}_{timestamp}.png"
-            screenshot_path = os.path.join(domain_dir, screenshot_filename)
+            screenshot_path = os.path.join(screenshot_folder, screenshot_filename)
             if FULL_SCREENSHOT:
                 page.screenshot(path=screenshot_path, full_page=True)
             else:
@@ -109,7 +110,7 @@ def main():
             browser.close()
 
         # Compare with last screenshot for this domain
-        previous_hash = get_latest_screenshot_hash(domain_dir, screenshot_path)
+        previous_hash = get_latest_screenshot_hash(screenshot_folder, screenshot_path)
         current_hash = hash_file(screenshot_path)
         if previous_hash is None:
             print("[INFO] First screenshot for this domain, keeping it.")
