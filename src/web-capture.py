@@ -16,9 +16,6 @@ SNAPSHOT_DIR = "snapshots"
 SCREENSHOT_DIR = "screenshots"
 HTML_DIR = "html"
 
-# Create directories if they don't exist
-# os.makedirs(SCREENSHOT_DIR, exist_ok=True)
-# os.makedirs(HTML_DIR, exist_ok=True)
 
 def hash_file(filepath: str) -> str:
     # Return MD5 hash of the file
@@ -49,6 +46,9 @@ def main():
         if domain.startswith("www."):
             domain = domain[4:]
         folder_name = domain.replace(".", "_")
+
+        # os.makedirs("{folder_name}\screenshots", exist_ok=True)
+        # os.makedirs(HTML_DIR, exist_ok=True)
 
         # create screenshot and html directories for the domain if they don't exist
         screenshot_folder = os.path.join(SNAPSHOT_DIR, folder_name, SCREENSHOT_DIR)
@@ -98,6 +98,15 @@ def main():
                 "width": viewport_size["width"],
                 "height": CAPTURE_HEIGHT
             }
+
+            #save HTML content of the page
+            html_content = page.content()
+            html_filename = f"{folder_name}.html"
+            html_path = os.path.join(html_folder, html_filename)
+            os.makedirs(os.path.dirname(html_path), exist_ok=True)
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            print(f"[INFO] HTML content saved to: {html_filename}")
             
             # Create unique filename with domain and current date & time
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
