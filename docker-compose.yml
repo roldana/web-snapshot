@@ -1,0 +1,13 @@
+services:
+  web-snapshot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web_snapshot
+    # network_mode: "host"
+    # env_file:
+    #   - .env
+    volumes:
+    - ./src:/app/src
+    - ./data:/app/snapshots  # Maps the host's "./data" to the container's "/app/snapshots"
+    
