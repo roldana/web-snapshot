@@ -4,10 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: web_snapshot
+    user: "${UID}:${GID}"
     # network_mode: "host"
     # env_file:
     #   - .env
     volumes:
     - ./src:/app/src
-    - ./data:/app/snapshots  # Maps the host's "./data" to the container's "/app/snapshots"
+    - ./data:/app/data  # Maps the host's "./snapshots" to the container's "/app/snapshots"
     

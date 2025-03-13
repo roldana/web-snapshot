@@ -7,12 +7,13 @@ from playwright.sync_api import sync_playwright
 URLS = [
     "https://example.com",
     "https://www.wikipedia.org",
-    "https://www.python.org"
+    "https://www.python.org",
+    "https://www.google.com"
 ]
 
 FULL_SCREENSHOT = True
 CAPTURE_HEIGHT = 6000
-SNAPSHOT_DIR = "snapshots"
+SNAPSHOT_DIR = "data/snapshots"
 SCREENSHOT_DIR = "screenshots"
 HTML_DIR = "html"
 
