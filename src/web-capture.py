@@ -2,20 +2,38 @@ import os
 import hashlib
 import datetime
 import urllib.parse
+import logging
 from playwright.sync_api import sync_playwright
 
 URLS = [
     "https://example.com",
     "https://www.wikipedia.org",
     "https://www.python.org",
-    "https://www.google.com"
+    "https://www.google.com",
+    "https://www.github.com",
+    "https://www.stackoverflow.com",
+    "https://www.youtube.com",
+    "https://www.facebook.com"
 ]
 
+VIEWPORT_WIDTH = 1920
+VIEWPORT_HEIGHT = 1080
 FULL_SCREENSHOT = True
 CAPTURE_HEIGHT = 6000
 SNAPSHOT_DIR = "data/snapshots"
 SCREENSHOT_DIR = "screenshots"
 HTML_DIR = "html"
+LOGS_DIR = "data/logs"
+
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+logging.basicConfig(
+    filename=f"{LOGS_DIR}/scrape.log",
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+logging.info("Starting scraping process")
 
 
 def hash_file(filepath: str) -> str:
@@ -57,11 +75,12 @@ def main():
 
 
         with sync_playwright() as p:
+            logging.info(f"Scraping URL: {url} for domain: {folder_name}")
             browser = p.chromium.launch(headless=True)
-            context = browser.new_context(viewport={"width": 1600, "height": 2000})
+            context = browser.new_context(viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
             page = context.new_page()
-            page.goto(url, timeout=60000)
-            page.wait_for_load_state("networkidle")
+            page.goto(url)
+            page.wait_for_load_state("networkidle", timeout=60000)
             
             page.wait_for_timeout(1000)
             # Scroll to the bottom of the page to trigger lazy load
@@ -130,6 +149,9 @@ def main():
                 print("[INFO] Screenshot is identical to the last one for this domain. Deleting the current screenshot.")
             else:
                 print("[INFO] Screenshot is different, keeping it.")
+
+        logging.info(f"Finished scraping URL: {url} for domain: {folder_name}")
+
 
 if __name__ == "__main__":
     main()
