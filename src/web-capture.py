@@ -4,17 +4,7 @@ import datetime
 import urllib.parse
 import logging
 from playwright.sync_api import sync_playwright
-
-URLS = [
-    "https://example.com",
-    "https://www.wikipedia.org",
-    "https://www.python.org",
-    "https://www.google.com",
-    "https://www.github.com",
-    "https://www.stackoverflow.com",
-    "https://www.youtube.com",
-    "https://www.facebook.com"
-]
+import json
 
 VIEWPORT_WIDTH = 1920
 VIEWPORT_HEIGHT = 1080
@@ -35,6 +25,10 @@ logging.basicConfig(
 
 logging.info("Starting scraping process")
 
+def load_urls(file_path):
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    return data.get("sample_urls", [])
 
 def hash_file(filepath: str) -> str:
     # Return MD5 hash of the file
@@ -56,6 +50,7 @@ def get_latest_screenshot_hash(domain_dir: str, curr_file: str) -> str:
     return hash_file(latest_file)
 
 def main():
+    URLS = load_urls("data/urls.json")
     for url in URLS:
         print(f"\n[INFO] Handling URL: {url}")
 
@@ -73,70 +68,73 @@ def main():
         screenshot_folder = os.path.join(SNAPSHOT_DIR, folder_name, SCREENSHOT_DIR)
         html_folder = os.path.join(SNAPSHOT_DIR, folder_name, HTML_DIR)
 
+        try:
+            with sync_playwright() as p:
+                logging.info(f"Scraping URL: {url} for domain: {folder_name}")
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
+                page = context.new_page()
+                page.goto(url)
+                page.wait_for_load_state("networkidle", timeout=60000)
+                
+                page.wait_for_timeout(1000)
+                # Scroll to the bottom of the page to trigger lazy load
+                page.evaluate(
+                    """() => {
+                        return new Promise(resolve => {
+                            let totalHeight = 0;
+                            const distance = 100;
+                            const timer = setInterval(() => {
+                                window.scrollBy(0, distance);
+                                totalHeight += distance;
+                                if (totalHeight >= document.body.scrollHeight) {
+                                    clearInterval(timer);
+                                    resolve();
+                                }
+                            }, 100);
+                        });
+                    }"""
+                )
+                # Optionally wait a moment after scrolling for any pending network requests
+                page.wait_for_timeout(2000)
+                # Scroll back to the top so that floating navbars appear correctly
+                page.evaluate("window.scrollTo(0, 0)")
+                page.wait_for_timeout(1000)
 
-        with sync_playwright() as p:
-            logging.info(f"Scraping URL: {url} for domain: {folder_name}")
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
-            page = context.new_page()
-            page.goto(url)
-            page.wait_for_load_state("networkidle", timeout=60000)
-            
-            page.wait_for_timeout(1000)
-            # Scroll to the bottom of the page to trigger lazy load
-            page.evaluate(
-                """() => {
-                    return new Promise(resolve => {
-                        let totalHeight = 0;
-                        const distance = 100;
-                        const timer = setInterval(() => {
-                            window.scrollBy(0, distance);
-                            totalHeight += distance;
-                            if (totalHeight >= document.body.scrollHeight) {
-                                clearInterval(timer);
-                                resolve();
-                            }
-                        }, 100);
-                    });
-                }"""
-            )
-            # Optionally wait a moment after scrolling for any pending network requests
-            page.wait_for_timeout(2000)
-            # Scroll back to the top so that floating navbars appear correctly
-            page.evaluate("window.scrollTo(0, 0)")
-            page.wait_for_timeout(1000)
+                viewport_size = page.viewport_size
+                if not viewport_size:
+                    print("[WARN] Could not get viewport size. Skipping.")
+                    browser.close()
+                    continue
 
-            viewport_size = page.viewport_size
-            if not viewport_size:
-                print("[WARN] Could not get viewport size. Skipping.")
+                clip_region = {
+                    "x": 0,
+                    "y": 0,
+                    "width": viewport_size["width"],
+                    "height": CAPTURE_HEIGHT
+                }
+
+                #save HTML content of the page
+                html_content = page.content()
+                html_filename = f"{folder_name}.html"
+                html_path = os.path.join(html_folder, html_filename)
+                os.makedirs(os.path.dirname(html_path), exist_ok=True)
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                print(f"[INFO] HTML content saved to: {html_filename}")
+                
+                # Create unique filename with domain and current date & time
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                screenshot_filename = f"{folder_name}_{timestamp}.png"
+                screenshot_path = os.path.join(screenshot_folder, screenshot_filename)
+                if FULL_SCREENSHOT:
+                    page.screenshot(path=screenshot_path, full_page=True)
+                else:
+                    page.screenshot(path=screenshot_path, clip=clip_region)
                 browser.close()
-                continue
-
-            clip_region = {
-                "x": 0,
-                "y": 0,
-                "width": viewport_size["width"],
-                "height": CAPTURE_HEIGHT
-            }
-
-            #save HTML content of the page
-            html_content = page.content()
-            html_filename = f"{folder_name}.html"
-            html_path = os.path.join(html_folder, html_filename)
-            os.makedirs(os.path.dirname(html_path), exist_ok=True)
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(html_content)
-            print(f"[INFO] HTML content saved to: {html_filename}")
-            
-            # Create unique filename with domain and current date & time
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            screenshot_filename = f"{folder_name}_{timestamp}.png"
-            screenshot_path = os.path.join(screenshot_folder, screenshot_filename)
-            if FULL_SCREENSHOT:
-                page.screenshot(path=screenshot_path, full_page=True)
-            else:
-                page.screenshot(path=screenshot_path, clip=clip_region)
-            browser.close()
+        except Exception as e:
+            logging.error(f"Error scraping {url}: {e}", exc_info=True)
+        
 
         # Compare with last screenshot for this domain
         previous_hash = get_latest_screenshot_hash(screenshot_folder, screenshot_path)
