@@ -1,0 +1,16 @@
+{
+    "urls": [
+      "https://domain1.com/",
+      "https://domain2.com/"
+    ],
+    "sample_urls": [
+      "https://example.com",
+      "https://www.wikipedia.org",
+      "https://www.python.org",
+      "https://www.google.com",
+      "https://www.github.com",
+      "https://www.stackoverflow.com",
+      "https://www.youtube.com",
+      "https://www.facebook.com"
+  ]
+}
