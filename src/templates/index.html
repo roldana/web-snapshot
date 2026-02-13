@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Snapshot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        header {
+            background-color: #007BFF;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+        .history {
+            margin-top: 2rem;
+        }
+        .history h2 {
+            margin-bottom: 1rem;
+        }
+        .job {
+            border: 1px solid #ddd;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+        }
+        .job.running {
+            background-color: #FFF3CD;
+        }
+        .job.done {
+            background-color: #D4EDDA;
+        }
+        .job.error {
+            background-color: #F8D7DA;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Web Snapshot</h1>
+    </header>
+    <main>
+        <div class="container">
+            <button id="start-capture">Start Capture</button>
+            <div class="history">
+                <h2>Job History</h2>
+                <div id="job-history"></div>
+            </div>
+        </div>
+    </main>
+    <script>
+        const jobHistory = document.getElementById('job-history');
+        const startCaptureButton = document.getElementById('start-capture');
+
+        async function fetchJobHistory() {
+            // Fetch job history from the server
+            const response = await fetch('/status');
+            const data = await response.json();
+
+            jobHistory.innerHTML = '';
+            data.jobs.forEach(job => {
+                const jobDiv = document.createElement('div');
+                jobDiv.className = `job ${job.status}`;
+                jobDiv.innerHTML = `
+                    <p><strong>Job ID:</strong> ${job.id}</p>
+                    <p><strong>Status:</strong> ${job.status}</p>
+                    <p><strong>Result:</strong> ${job.result || 'N/A'}</p>
+                `;
+                jobHistory.appendChild(jobDiv);
+            });
+        }
+
+        async function startCapture() {
+            // Start a new capture job
+            const response = await fetch('/capture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ urls: [] }) // Replace with actual URLs
+            });
+
+            if (response.ok) {
+                alert('Capture started!');
+                fetchJobHistory();
+            } else {
+                alert('Failed to start capture.');
+            }
+        }
+
+        startCaptureButton.addEventListener('click', startCapture);
+
+        // Fetch job history on page load
+        fetchJobHistory();
+    </script>
+</body>
+</html>
