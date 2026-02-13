@@ -18,7 +18,7 @@ URLS_PATH = os.path.join(DATA_DIR, "urls.json")
 SELECTED_URLS_PATH = os.path.join(DATA_DIR, "selected_urls.json")
 
 # ---------- Load web-capture.py (hyphenated filename) ----------
-MODULE_PATH = os.path.join(HERE, "web-capture.py")
+MODULE_PATH = os.path.join(HERE, "web_capture.py")
 spec = importlib.util.spec_from_file_location("web_capture", MODULE_PATH)
 if spec is None or spec.loader is None:
     raise RuntimeError(f"Could not load module at {MODULE_PATH}")
@@ -262,4 +262,5 @@ def save_selected():
 init_db()
 
 if __name__ == "__main__":
-    APP.run(host="0.0.0.0", port=5000, debug=True)
+    DEBUG_MODE = os.getenv("DEBUG_MODE", "true").lower() == "true"
+    APP.run(host="0.0.0.0", port=5000, debug=False)

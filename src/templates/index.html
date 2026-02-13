@@ -1,112 +1,92 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Snapshot</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        header {
-            background-color: #007BFF;
-            color: white;
-            padding: 1rem;
-            text-align: center;
-        }
-        main {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 1rem;
-        }
-        .container {
-            max-width: 800px;
-            width: 100%;
-        }
-        .history {
-            margin-top: 2rem;
-        }
-        .history h2 {
-            margin-bottom: 1rem;
-        }
-        .job {
-            border: 1px solid #ddd;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 5px;
-        }
-        .job.running {
-            background-color: #FFF3CD;
-        }
-        .job.done {
-            background-color: #D4EDDA;
-        }
-        .job.error {
-            background-color: #F8D7DA;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Web Snapshot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header>
-        <h1>Web Snapshot</h1>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">[] <span>Snapshot</span></div>
+      <nav class="top-actions">
+        <button id="themeToggle" class="btn btn-ghost" type="button">D/L</button>
+        <a class="btn btn-ghost" href="{{ url_for('about') }}">About</a>
+      </nav>
     </header>
-    <main>
-        <div class="container">
-            <button id="start-capture">Start Capture</button>
-            <div class="history">
-                <h2>Job History</h2>
-                <div id="job-history"></div>
-            </div>
+
+    <main class="content">
+      <!-- LEFT: History -->
+      <aside class="history">
+        <h3>History</h3>
+        {% if history %}
+          <ul class="history-list">
+            {% for row in history %}
+              <li class="history-item">
+                <div class="history-url" title="{{ row['url'] }}">{{ row["url"] }}</div>
+                <div class="history-meta">
+                  <span class="badge badge-{{ row['status'] }}">{{ row["status"] }}</span>
+                  <span class="time">{{ row["created_at"][:19].replace('T', ' ') }}</span>
+                </div>
+                <div class="history-options">
+                  {% if row["full_page"] %}<span>Full Page</span>{% endif %}
+                  {% if row["mobile_view"] %}<span>Mobile</span>{% endif %}
+                </div>
+                {% if row["error"] %}
+                  <div class="history-error">{{ row["error"] }}</div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">No captures yet.</p>
+        {% endif %}
+      </aside>
+
+      <!-- RIGHT: Main input area -->
+      <section class="main-capture">
+        <div class="hero">
+          <h1>Web Snapshot</h1>
         </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-stack">
+              {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('capture') }}" method="post" class="capture-form">
+          <input
+            type="text"
+            name="url"
+            placeholder="https://example.com"
+            aria-label="Website URL"
+            required
+          />
+          <button type="submit" class="btn btn-primary">RUN</button>
+        </form>
+
+        <div class="options">
+          <label><input type="checkbox" name="full_page" form="capture-form-fallback" checked> Full Page</label>
+          <label><input type="checkbox" name="mobile_view" form="capture-form-fallback"> Mobile View</label>
+          <label><input type="checkbox" name="pdf_gen" form="capture-form-fallback">PDF</label>
+          <label><input type="checkbox" name="all_domain" form="capture-form-fallback">All Domain</label>
+          <label><input type="checkbox" name="screenshot" form="capture-form-fallback">Screenshot</label>
+
+
+        </div>
+      </section>
     </main>
-    <script>
-        const jobHistory = document.getElementById('job-history');
-        const startCaptureButton = document.getElementById('start-capture');
+  </div>
 
-        async function fetchJobHistory() {
-            // Fetch job history from the server
-            const response = await fetch('/status');
-            const data = await response.json();
+  <!-- Hidden helper form so checkboxes can style consistently; we sync it with JS -->
+  <form id="capture-form-fallback" style="display:none"></form>
 
-            jobHistory.innerHTML = '';
-            data.jobs.forEach(job => {
-                const jobDiv = document.createElement('div');
-                jobDiv.className = `job ${job.status}`;
-                jobDiv.innerHTML = `
-                    <p><strong>Job ID:</strong> ${job.id}</p>
-                    <p><strong>Status:</strong> ${job.status}</p>
-                    <p><strong>Result:</strong> ${job.result || 'N/A'}</p>
-                `;
-                jobHistory.appendChild(jobDiv);
-            });
-        }
-
-        async function startCapture() {
-            // Start a new capture job
-            const response = await fetch('/capture', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ urls: [] }) // Replace with actual URLs
-            });
-
-            if (response.ok) {
-                alert('Capture started!');
-                fetchJobHistory();
-            } else {
-                alert('Failed to start capture.');
-            }
-        }
-
-        startCaptureButton.addEventListener('click', startCapture);
-
-        // Fetch job history on page load
-        fetchJobHistory();
-    </script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
