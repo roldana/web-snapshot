@@ -236,6 +236,54 @@ def job_status(job_id):
     return api_ok(payload)
 
 
+@APP.route("/jobs", methods=["GET"])
+def list_jobs():
+    try:
+        limit = request.args.get("limit", default=50, type=int)
+        limit = max(1, min(limit, 200))
+        with db_connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT job_id, status, urls_json, result_json, error_text, created_at, updated_at
+                FROM jobs
+                ORDER BY datetime(created_at) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+        jobs = []
+        for r in rows:
+            urls = []
+            try:
+                urls = json.loads(r["urls_json"]) if r["urls_json"] else []
+            except Exception:
+                urls = []
+            primary_url = urls[0] if urls else None
+            extra = len(urls) - 1 if len(urls) > 1 else 0
+            display_url = primary_url or "(no url)"
+            if extra > 0:
+                display_url = f"{display_url} (+{extra})"
+
+            jobs.append(
+                {
+                    "job_id": r["job_id"],
+                    "url": display_url,
+                    "status": r["status"],
+                    "error": r["error_text"],
+                    "created_at": r["created_at"],
+                    "updated_at": r["updated_at"],
+                    # Frontend expects these flags; API doesn't track them now
+                    "full_page": False,
+                    "mobile_view": False,
+                }
+            )
+
+        return api_ok({"jobs": jobs})
+    except Exception as e:
+        return api_error(str(e), status=500, code="JOB_LIST_ERROR")
+
+
 @APP.route("/save_selected", methods=["POST"])
 def save_selected():
     body = request.get_json(silent=True) or {}
