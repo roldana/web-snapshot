@@ -37,3 +37,10 @@ services:
       - ./data:/app/data:rw
       - ./src:/app/src:rw
     profiles: ["tools"]
+  sitemap_scan:
+    image: web-snapshot-app:local
+    entrypoint: ["python", "src/sitemap_scan.py"]
+    volumes:
+      - ./data:/app/data:rw
+      - ./src:/app/src:rw
+    profiles: ["tools"]
