@@ -1,10 +1,11 @@
 import os
 import hashlib
-import datetime
 import urllib.parse
 import logging
 from playwright.sync_api import sync_playwright
 import json
+import re
+import datetime
 
 VIEWPORT_WIDTH = 1920
 VIEWPORT_HEIGHT = 1080
@@ -53,6 +54,35 @@ def get_latest_screenshot_hash(domain_dir: str, curr_file: str) -> str:
     latest_file = os.path.join(domain_dir, files[-1])
     return hash_file(latest_file)
 
+def _short_hash(text: str, length: int = 8) -> str:
+    return hashlib.md5(text.encode("utf-8")).hexdigest()[:length]
+
+
+def _slugify_path(url: str) -> str:
+    """Map a URL to a stable slug filename per domain.
+
+    Rules (simple, readable, unique per URL):
+    - Homepage ("/" or empty path) => "index"
+    - Plain path like "/about" => "about"
+    - Nested path like "/a/b" => "a-b"
+    - If a query string exists, append a short hash suffix to disambiguate: "about-<hash>"
+    - Only use [a-z0-9-]; collapse multiple dashes
+    """
+    p = urllib.parse.urlparse(url)
+    path = (p.path or "/").strip()
+    if path in ("", "/"):
+        base = "index"
+    else:
+        segs = [s for s in path.split("/") if s]
+        base = "-".join(segs)
+    # slugify
+    base = base.lower()
+    base = re.sub(r"[^a-z0-9]+", "-", base)
+    base = re.sub(r"-+", "-", base).strip("-") or "index"
+    if p.query:
+        base = f"{base}-{_short_hash(url)}"
+    return base
+
 def capture_urls(url_list):
     """Capture screenshots and HTML for each URL in url_list.
     Previously in main().
@@ -67,7 +97,7 @@ def capture_urls(url_list):
         domain = parsed.netloc
         if domain.startswith("www."):
             domain = domain[4:]
-        folder_name = domain.replace(".", "_")
+        folder_name = domain  # keep dots in domain for folder clarity
         domain_map.setdefault(folder_name, []).append(url)
 
     # For each domain, launch a separate browser instance and reuse it for all URLs
@@ -114,53 +144,31 @@ def capture_urls(url_list):
                         page.evaluate("window.scrollTo(0, 0)")
                         page.wait_for_timeout(1000)
 
-                        viewport_size = page.viewport_size
-                        if not viewport_size:
-                            print("[WARN] Could not get viewport size. Skipping.")
-                            page.close()
-                            results.append({"url": url, "status": "skipped", "reason": "no viewport"})
-                            continue
+                        # Map URL to stable filename within the domain
+                        slug = _slugify_path(url)
 
-                        clip_region = {
-                            "x": 0,
-                            "y": 0,
-                            "width": viewport_size["width"],
-                            "height": CAPTURE_HEIGHT
-                        }
-
-                        # save HTML content of the page
+                        # save HTML content of the page (timestamped local time)
                         html_content = page.content()
-                        html_filename = f"{folder_name}.html"
+                        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        html_filename = f"{slug}_{ts}.html"
                         html_path = os.path.join(html_folder, html_filename)
                         with open(html_path, "w", encoding="utf-8") as f:
                             f.write(html_content)
-                        print(f"[INFO] HTML content saved to: {html_filename}")
+                        print(f"[INFO] HTML saved: {os.path.join(folder_name, HTML_DIR, html_filename)}")
 
-                        # Create unique filename with domain and current date & time
-                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                        screenshot_filename = f"{folder_name}_{timestamp}.png"
+                        # Save screenshot (full page by default) using the same slug and timestamp
+                        screenshot_filename = f"{slug}_{ts}.png"
                         screenshot_path = os.path.join(screenshot_folder, screenshot_filename)
-                        if FULL_SCREENSHOT:
-                            page.screenshot(path=screenshot_path, full_page=True)
-                        else:
-                            page.screenshot(path=screenshot_path, clip=clip_region)
+                        page.screenshot(path=screenshot_path, full_page=FULL_SCREENSHOT)
 
                         page.close()
 
-                        # Compare with last screenshot for this domain
-                        previous_hash = get_latest_screenshot_hash(screenshot_folder, screenshot_path)
-                        current_hash = hash_file(screenshot_path)
-                        if previous_hash is None:
-                            print("[INFO] First screenshot for this domain, keeping it.")
-                            results.append({"url": url, "status": "saved", "path": screenshot_path})
-                        else:
-                            if current_hash == previous_hash:
-                                os.remove(screenshot_path)
-                                print("[INFO] Screenshot is identical to the last one for this domain. Deleting the current screenshot.")
-                                results.append({"url": url, "status": "duplicate"})
-                            else:
-                                print("[INFO] Screenshot is different, keeping it.")
-                                results.append({"url": url, "status": "saved", "path": screenshot_path})
+                        results.append({
+                            "url": url,
+                            "status": "saved",
+                            "html_path": html_path,
+                            "screenshot_path": screenshot_path,
+                        })
 
                         logging.info(f"Finished scraping URL: {url} for domain: {folder_name}")
 
