@@ -200,6 +200,7 @@ def capture():
 
 if __name__ == "__main__":
     init_db()
-    APP.run(host="0.0.0.0", port=5050, debug=True)
+    DEBUG_MODE = os.getenv("FLASK_DEBUG", "true").lower() in ("true", "1", "yes")
+    APP.run(host="0.0.0.0", port=5050, debug=False)
 else:
     init_db()

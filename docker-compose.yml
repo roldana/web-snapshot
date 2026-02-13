@@ -16,7 +16,6 @@ services:
       - ./data:/app/data:rw
     command: python3 src/web_api.py
     restart: unless-stopped
-
   frontend:
     image: web-snapshot-app:local
     container_name: web_snapshot_frontend
@@ -32,6 +31,8 @@ services:
   capture_once:
     image: web-snapshot-app:local
     entrypoint: ["python", "src/capture_once.py"]
+    environment:
+      WEB_SNAPSHOT_API: http://api:5000
     volumes:
       - ./data:/app/data:rw
       - ./src:/app/src:rw
