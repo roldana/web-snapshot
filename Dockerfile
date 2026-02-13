@@ -52,4 +52,4 @@ RUN chown -R ${UID}:${GID} /ms-playwright
 COPY . /app/
 
 # Set the command to run the script
-CMD ["python", "src/web-capture.py"]
+# CMD ["python", "src/web-capture.py"]

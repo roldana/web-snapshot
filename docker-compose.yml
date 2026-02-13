@@ -1,14 +1,38 @@
 services:
-  web-snapshot:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: web_snapshot
-    user: "${UID}:${GID}"
-    # network_mode: "host"
-    # env_file:
-    #   - .env
+    image: web-snapshot-app:local
+    container_name: web_snapshot_api
+    environment:
+      API_SECRET_KEY: not-so-secret-key
+      PYTHONUNBUFFERED: "1"
+      DB_PATH: /app/data/app.db
+    ports:
+      - "5000:5000"
     volumes:
-    - ./src:/app/src
-    - ./data:/app/data  # Maps the host's "./snapshots" to the container's "/app/snapshots"
-    
+      - ./src:/app/src:rw
+      - ./data:/app/data:rw
+    command: python3 src/web_api.py
+    restart: unless-stopped
+
+  frontend:
+    image: web-snapshot-app:local
+    container_name: web_snapshot_frontend
+    environment:
+      WEB_CAPTURE_API_BASE: http://api:5000
+      FRONTEND_SECRET_KEY: not-so-secret-key
+    ports:
+      - "5050:5050"
+    depends_on:
+      - api
+    command: python3 src/web_app.py
+    restart: unless-stopped
+  capture_once:
+    image: web-snapshot-app:local
+    entrypoint: ["python", "src/capture_once.py"]
+    volumes:
+      - ./data:/app/data:rw
+      - ./src:/app/src:rw
+    profiles: ["tools"]

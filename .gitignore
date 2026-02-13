@@ -1,5 +1,7 @@
 data/snapshots
 data/logs
+data/urls.json
 *.pyc
 __pycache__/
 *.db
+.venv
