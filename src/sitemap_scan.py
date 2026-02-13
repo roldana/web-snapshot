@@ -1,9 +1,8 @@
 import argparse
 import sys
-import re
 import json
 import gzip
-from io import BytesIO
+import xml.etree.ElementTree as ET
 from urllib.parse import urlparse, urlunparse
 
 import requests
@@ -29,22 +28,14 @@ COMMON_SITEMAP_PATHS = [
     "/product-sitemap.xml",
     "/category-sitemap.xml",
     "/tag-sitemap.xml",
-    "/wp-sitemap.xml",  # WordPress 5.5+
+    "/wp-sitemap.xml",
     "/sitemap/sitemap.xml",
     "/sitemap/sitemap-index.xml",
     "/sitemap/sitemap_index.xml",
     "/sitemap_index_1.xml",
-    "/sitemap.txt",  # some sites publish plain text list
+    "/sitemap.xml?no_cache=1",
+    "/sitemap.txt",
 ]
-
-ADDITIONAL_SITEMAP_PATHS = [
-    "/sitemap.xml?no_cache=1"  # some CDNs
-]
-
-
-XML_ROOT_RE = re.compile(rb"<\?xml[^>]*>\s*<(?P<root>tag|urlset|sitemapindex)[\s>]")
-URLSET_RE = re.compile(rb"<urlset[\s>]")
-SITEMAPINDEX_RE = re.compile(rb"<sitemapindex[\s>]")
 
 
 def normalize_base(url: str) -> str:
@@ -56,39 +47,7 @@ def normalize_base(url: str) -> str:
     p = urlparse(url)
     if not p.netloc:
         raise ValueError("invalid URL: missing host")
-    # strip path/query/fragment; keep scheme+netloc
     return urlunparse((p.scheme, p.netloc, "", "", "", ""))
-
-
-def is_sitemap_bytes(data: bytes, content_type: str | None) -> bool:
-    if not data:
-        return False
-    # try to detect gzip raw content regardless of headers
-    try:
-        if data[:2] == b"\x1f\x8b":
-            data = gzip.decompress(data)
-    except Exception:
-        pass
-
-    # quick content-type hint
-    if content_type and ("xml" in content_type or "text/plain" in content_type or "application/octet-stream" in content_type):
-        pass
-
-    head = data[:2048].strip()
-    if URLSET_RE.search(head) or SITEMAPINDEX_RE.search(head):
-        return True
-    # looser XML root check
-    if b"<urlset" in head or b"<sitemapindex" in head:
-        return True
-    # allow simple text list of URLs (sitemap.txt)
-    try:
-        text = head.decode("utf-8", errors="ignore")
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-        if lines and all(ln.startswith("http") for ln in lines[:5]):
-            return True
-    except Exception:
-        pass
-    return False
 
 
 def fetch(url: str, timeout: float = 10.0) -> tuple[int, dict[str, str], bytes]:
@@ -99,54 +58,87 @@ def fetch(url: str, timeout: float = 10.0) -> tuple[int, dict[str, str], bytes]:
         return 0, {}, b""
 
 
-def probe_candidates(base: str) -> list[dict]:
-    results: list[dict] = []
-    seen: set[str] = set()
+def decompress_if_needed(data: bytes) -> bytes:
+    if not data:
+        return b""
+    try:
+        if data[:2] == b"\x1f\x8b":
+            return gzip.decompress(data)
+    except Exception:
+        pass
+    return data
 
-    # robots.txt discovery
-    robots_url = base + "/robots.txt"
-    status, headers, body = fetch(robots_url)
-    if status == 200 and body:
-        try:
-            text = body.decode("utf-8", errors="ignore")
-            for line in text.splitlines():
-                if line.lower().startswith("sitemap:"):
-                    candidate = line.split(":", 1)[1].strip()
-                    if candidate and candidate not in seen:
-                        seen.add(candidate)
-                        c_status, c_headers, c_body = fetch(candidate)
-                        is_map = c_status == 200 and is_sitemap_bytes(c_body, c_headers.get("content-type"))
-                        results.append({
-                            "source": "robots",
-                            "url": candidate,
-                            "status": c_status,
-                            "is_sitemap": is_map,
-                            "content_type": c_headers.get("content-type"),
-                        })
-        except Exception:
-            pass
 
-    # common paths under base
+def parse_root_type(xml_bytes: bytes) -> str | None:
+    try:
+        root = ET.fromstring(xml_bytes)
+    except Exception:
+        return None
+    tag = root.tag.rsplit("}", 1)[-1] if "}" in root.tag else root.tag
+    if tag == "sitemapindex":
+        return "sitemapindex"
+    if tag == "urlset":
+        return "urlset"
+    return None
+
+
+def extract_sitemaps_from_index(xml_bytes: bytes) -> list[str]:
+    urls: list[str] = []
+    try:
+        root = ET.fromstring(xml_bytes)
+        ns_strip = lambda t: t.rsplit("}", 1)[-1] if "}" in t else t
+        for sm in root.findall(".//"):
+            if ns_strip(sm.tag) == "loc":
+                if sm.text and sm.text.strip():
+                    urls.append(sm.text.strip())
+    except Exception:
+        pass
+    return urls
+
+
+def get_sitemaps_from_root(root_url: str) -> tuple[str, str, list[str]] | None:
+    status, headers, body = fetch(root_url)
+    if status != 200 or not body:
+        return None
+    data = decompress_if_needed(body)
+    rtype = parse_root_type(data)
+    if rtype == "urlset":
+        return root_url, rtype, [root_url]
+    if rtype == "sitemapindex":
+        children = extract_sitemaps_from_index(data)
+        return root_url, rtype, children or []
+    return None
+
+
+def find_robots_sitemap(base: str) -> str | None:
+    status, headers, body = fetch(base + "/robots.txt")
+    if status != 200 or not body:
+        return None
+    try:
+        for line in body.decode("utf-8", errors="ignore").splitlines():
+            if line.lower().startswith("sitemap:"):
+                sm = line.split(":", 1)[1].strip()
+                if sm:
+                    return sm
+    except Exception:
+        return None
+    return None
+
+
+def fallback_common_root(base: str) -> str | None:
     for path in COMMON_SITEMAP_PATHS:
         url = base + path
-        if url in seen:
-            continue
-        seen.add(url)
         status, headers, body = fetch(url)
-        ok = status == 200 and is_sitemap_bytes(body, headers.get("content-type"))
-        results.append({
-            "source": "common",
-            "url": url,
-            "status": status,
-            "is_sitemap": ok,
-            "content_type": headers.get("content-type"),
-        })
+        if status == 200 and body:
+            data = decompress_if_needed(body)
+            rtype = parse_root_type(data)
+            if rtype in ("urlset", "sitemapindex"):
+                return url
+    return None
+ 
 
-    return results
-
-
-def main():
-    ap = argparse.ArgumentParser(description="Probe common sitemap URLs and robots.txt for sitemap discovery")
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Discover sitemaps from robots.txt or common paths")
     ap.add_argument("base", help="Root domain or URL (e.g., example.com or https://example.com)")
     ap.add_argument("--json", action="store_true", help="Print machine-readable JSON output")
     args = ap.parse_args()
@@ -157,26 +149,58 @@ def main():
         print(f"Invalid input: {e}", file=sys.stderr)
         sys.exit(2)
 
-    results = probe_candidates(base)
+    # 1) robots.txt → root sitemap (first Sitemap: entry)
+    found_via = None
+    root_sitemap = find_robots_sitemap(base)
+    if root_sitemap:
+        parsed = get_sitemaps_from_root(root_sitemap)
+        if parsed:
+            root_url, root_type, sitemaps = parsed
+            found_via = "robots"
+        else:
+            root_sitemap = None
 
+    # 2) Fallback to common paths if robots missing or invalid
+    if not root_sitemap:
+        alt = fallback_common_root(base)
+        if alt:
+            parsed = get_sitemaps_from_root(alt)
+            if parsed:
+                root_url, root_type, sitemaps = parsed
+                root_sitemap = root_url
+                found_via = "common"
+
+    # Output
     if args.json:
-        print(json.dumps({"base": base, "results": results}, indent=2))
+        if root_sitemap:
+            print(json.dumps({
+                "base": base,
+                "found_via": found_via,
+                "root_sitemap": root_sitemap,
+                "root_type": root_type,
+                "sitemaps": sitemaps,
+            }, indent=2))
+        else:
+            print(json.dumps({
+                "base": base,
+                "found_via": None,
+                "root_sitemap": None,
+                "root_type": None,
+                "sitemaps": [],
+            }, indent=2))
         return
 
     print(f"Base: {base}")
-    found = [r for r in results if r.get("is_sitemap")]
-    if found:
-        print("Discovered sitemaps:")
-        for r in found:
-            ct = r.get("content_type") or ""
-            print(f" - {r['url']}  (source={r['source']}, type={ct})")
+    if root_sitemap:
+        print(f"Root sitemap: {root_sitemap} (type={root_type}) [via {found_via}]")
+        if root_type == "sitemapindex":
+            print("Child sitemaps:")
+            for u in sitemaps:
+                print(f" - {u}")
+        else:
+            print("Using single sitemap (urlset)")
     else:
-        print("No sitemaps discovered at common locations.")
-
-    print("\nChecked:")
-    for r in results:
-        mark = "OK" if r.get("is_sitemap") else str(r.get("status"))
-        print(f" - {r['url']}: {mark}")
+        print("No sitemap found via robots or common paths.")
 
 
 if __name__ == "__main__":
