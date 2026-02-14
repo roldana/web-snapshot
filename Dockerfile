@@ -1,7 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.14.3-slim-bookworm
-
-# Keep image generic; set the runtime UID/GID via docker-compose
+FROM python:3.12-slim-bullseye
 
 # Set a working directory
 WORKDIR /app
@@ -48,5 +46,3 @@ RUN chmod -R a+rX /ms-playwright || true
 # Copy all files
 COPY . /app/
 
-# Set the command to run the script
-# CMD ["python", "src/web-capture.py"]

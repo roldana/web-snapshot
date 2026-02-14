@@ -37,7 +37,6 @@ COMMON_SITEMAP_PATHS = [
     "/sitemap.txt",
 ]
 
-
 def normalize_base(url: str) -> str:
     url = (url or "").strip()
     if not url:
@@ -49,14 +48,12 @@ def normalize_base(url: str) -> str:
         raise ValueError("invalid URL: missing host")
     return urlunparse((p.scheme, p.netloc, "", "", "", ""))
 
-
 def fetch(url: str, timeout: float = 10.0) -> tuple[int, dict[str, str], bytes]:
     try:
         r = requests.get(url, timeout=timeout, allow_redirects=True, headers={"User-Agent": "web-snapshot-sitemap/1.0"})
         return r.status_code, r.headers, r.content
     except requests.RequestException:
         return 0, {}, b""
-
 
 def decompress_if_needed(data: bytes) -> bytes:
     if not data:
@@ -67,7 +64,6 @@ def decompress_if_needed(data: bytes) -> bytes:
     except Exception:
         pass
     return data
-
 
 def parse_root_type(xml_bytes: bytes) -> str | None:
     try:
@@ -80,7 +76,6 @@ def parse_root_type(xml_bytes: bytes) -> str | None:
     if tag == "urlset":
         return "urlset"
     return None
-
 
 def extract_sitemaps_from_index(xml_bytes: bytes) -> list[str]:
     urls: list[str] = []
@@ -95,7 +90,6 @@ def extract_sitemaps_from_index(xml_bytes: bytes) -> list[str]:
         pass
     return urls
 
-
 def get_sitemaps_from_root(root_url: str) -> tuple[str, str, list[str]] | None:
     status, headers, body = fetch(root_url)
     if status != 200 or not body:
@@ -108,7 +102,6 @@ def get_sitemaps_from_root(root_url: str) -> tuple[str, str, list[str]] | None:
         children = extract_sitemaps_from_index(data)
         return root_url, rtype, children or []
     return None
-
 
 def find_robots_sitemap(base: str) -> str | None:
     status, headers, body = fetch(base + "/robots.txt")
@@ -124,7 +117,6 @@ def find_robots_sitemap(base: str) -> str | None:
         return None
     return None
 
-
 def fallback_common_root(base: str) -> str | None:
     for path in COMMON_SITEMAP_PATHS:
         url = base + path
@@ -136,7 +128,6 @@ def fallback_common_root(base: str) -> str | None:
                 return url
     return None
  
-
 def main() -> None:
     ap = argparse.ArgumentParser(description="Discover sitemaps from robots.txt or common paths")
     ap.add_argument("base", help="Root domain or URL (e.g., example.com or https://example.com)")
@@ -201,7 +192,6 @@ def main() -> None:
             print("Using single sitemap (urlset)")
     else:
         print("No sitemap found via robots or common paths.")
-
 
 if __name__ == "__main__":
     main()
