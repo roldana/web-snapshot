@@ -1,10 +1,7 @@
 # Use an official Python runtime as a parent image
-FROM python:3.12-slim-bullseye
+FROM python:3.14.3-slim-bookworm
 
-# Set build arguments for UID and GID of the user to run the script
-# This is useful to avoid running the script as root
-ARG UID=1000
-ARG GID=1000
+# Keep image generic; set the runtime UID/GID via docker-compose
 
 # Set a working directory
 WORKDIR /app
@@ -45,8 +42,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install Playwright Browsers (Chromium, Firefox, WebKit)
 RUN playwright install --with-deps chromium
 
-# Fix permissions for the shared browsers directory (change 1000:1000 accordingly)
-RUN chown -R ${UID}:${GID} /ms-playwright
+# Ensure the shared browsers directory is readable/executable by any user
+RUN chmod -R a+rX /ms-playwright || true
 
 # Copy all files
 COPY . /app/

@@ -5,10 +5,12 @@ services:
       dockerfile: Dockerfile
     image: web-snapshot-app:local
     container_name: web_snapshot_api
+    user: "${UID}:${GID}"
     environment:
       API_SECRET_KEY: not-so-secret-key
       PYTHONUNBUFFERED: "1"
       DB_PATH: /app/data/app.db
+      HOME: /tmp
     ports:
       - "5000:5000"
     volumes:
@@ -19,9 +21,11 @@ services:
   frontend:
     image: web-snapshot-app:local
     container_name: web_snapshot_frontend
+    user: "${UID}:${GID}"
     environment:
       WEB_CAPTURE_API_BASE: http://api:5000
       FRONTEND_SECRET_KEY: not-so-secret-key
+      HOME: /tmp
     ports:
       - "5050:5050"
     depends_on:
@@ -30,16 +34,21 @@ services:
     restart: unless-stopped
   capture_once:
     image: web-snapshot-app:local
+    user: "${UID}:${GID}"
     entrypoint: ["python", "src/capture_once.py"]
     environment:
       WEB_SNAPSHOT_API: http://api:5000
+      HOME: /tmp
     volumes:
       - ./data:/app/data:rw
       - ./src:/app/src:rw
     profiles: ["tools"]
   sitemap_scan:
     image: web-snapshot-app:local
+    user: "${UID}:${GID}"
     entrypoint: ["python", "src/sitemap_scan.py"]
+    environment:
+      HOME: /tmp
     volumes:
       - ./data:/app/data:rw
       - ./src:/app/src:rw
