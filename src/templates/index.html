@@ -23,19 +23,15 @@
         {% if history %}
           <ul class="history-list">
             {% for row in history %}
-              <li class="history-item">
-                <div class="history-url" title="{{ row['url'] }}">{{ row["url"] }}</div>
-                <div class="history-meta">
-                  <span class="badge badge-{{ row['status'] }}">{{ row["status"] }}</span>
-                  <span class="time">{{ row["created_at"][:19].replace('T', ' ') }}</span>
+              <li class="history-item" data-job-id="{{ row['job_id'] }}">
+                <div class="history-line">
+                  <span class="history-url" title="{{ row['url'] }}">{{ row["url"] }}</span>
+                  <span class="badge badge-{{ row['status'] }} history-status">{{ row["status"] }}</span>
+                  <span class="time history-time">{{ row["created_at"][:19].replace('T', ' ') }}</span>
+                  {% if row["full_page"] %}<span class="history-flag">FP</span>{% endif %}
+                  {% if row["mobile_view"] %}<span class="history-flag">M</span>{% endif %}
+                  <!-- {% if row["error"] %}<span class="history-error">ERR</span>{% endif %} -->
                 </div>
-                <div class="history-options">
-                  {% if row["full_page"] %}<span>Full Page</span>{% endif %}
-                  {% if row["mobile_view"] %}<span>Mobile</span>{% endif %}
-                </div>
-                {% if row["error"] %}
-                  <div class="history-error">{{ row["error"] }}</div>
-                {% endif %}
               </li>
             {% endfor %}
           </ul>

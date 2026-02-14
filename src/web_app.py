@@ -47,10 +47,23 @@ def index():
     return render_template("index.html", history=history)
 
 
+@APP.route("/api/status/<job_id>", methods=["GET"])
+def proxy_status(job_id):
+    try:
+        resp = requests.get(f"{API_BASE}/status/{job_id}", timeout=10)
+    except requests.RequestException:
+        return ("{\"ok\": false, \"error\": {\"message\": \"upstream unreachable\"}}", 502, {
+            "Content-Type": "application/json"
+        })
+
+    # Pass through JSON response (or a simple envelope) to the frontend
+    body = resp.text
+    return (body, resp.status_code, {"Content-Type": resp.headers.get("content-type", "application/json")})
+
+
 @APP.route("/about", methods=["GET"])
 def about():
     return render_template("about.html")
-
 
 @APP.route("/capture", methods=["POST"])
 def capture():
