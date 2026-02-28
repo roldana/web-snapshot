@@ -40,43 +40,92 @@
         {% endif %}
       </aside>
 
-      <!-- RIGHT: Main input area -->
-      <section class="main-capture">
-        <div class="hero">
-          <h1>Web Snapshot</h1>
+      <!-- CENTER: Workspace with tabs -->
+      <section class="workspace">
+        <!-- Hidden radios controlling tabs (CSS only) -->
+        <input class="tab-radio" type="radio" name="main-tabs" id="tab-capture" checked>
+        <input class="tab-radio" type="radio" name="main-tabs" id="tab-sitemap">
+        <input class="tab-radio" type="radio" name="main-tabs" id="tab-monitors">
+        <input class="tab-radio" type="radio" name="main-tabs" id="tab-results">
+
+        <div class="tabbar">
+          <label for="tab-capture">Capture</label>
+          <label for="tab-sitemap">Sitemap</label>
+          <label for="tab-monitors">Monitors</label>
+          <label for="tab-results">Results</label>
+          <div style="flex:1"></div>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="flash-stack">
-              {% for category, message in messages %}
-                <div class="flash flash-{{ category }}">{{ message }}</div>
-              {% endfor %}
+        <div class="panels">
+          <!-- Capture panel -->
+          <section class="panel main-capture" data-tab="tab-capture">
+            <div class="hero">
+              <h1>Web Snapshot</h1>
             </div>
-          {% endif %}
-        {% endwith %}
 
-        <form action="{{ url_for('capture') }}" method="post" class="capture-form">
-          <input
-            type="text"
-            name="url"
-            placeholder="https://example.com"
-            aria-label="Website URL"
-            required
-          />
-          <button type="submit" class="btn btn-primary">RUN</button>
-        </form>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <div class="flash-stack">
+                  {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
 
-        <div class="options">
-          <label><input type="checkbox" name="full_page" form="capture-form-fallback" checked> Full Page</label>
-          <label><input type="checkbox" name="mobile_view" form="capture-form-fallback"> Mobile View</label>
-          <label><input type="checkbox" name="pdf_gen" form="capture-form-fallback">PDF</label>
-          <label><input type="checkbox" name="all_domain" form="capture-form-fallback">All Domain</label>
-          <label><input type="checkbox" name="screenshot" form="capture-form-fallback">Screenshot</label>
+            <form action="{{ url_for('capture') }}" method="post" class="capture-form">
+              <input
+                type="text"
+                name="url"
+                placeholder="https://example.com"
+                aria-label="Website URL"
+                required
+              />
+              <button type="submit" class="btn btn-primary">RUN</button>
+            </form>
 
+            <div class="options">
+              <label><input type="checkbox" name="full_page" form="capture-form-fallback" checked> Full Page</label>
+              <label><input type="checkbox" name="mobile_view" form="capture-form-fallback"> Mobile View</label>
+              <label><input type="checkbox" name="pdf_gen" form="capture-form-fallback">PDF</label>
+              <label><input type="checkbox" name="all_domain" form="capture-form-fallback">All Domain</label>
+              <label><input type="checkbox" name="screenshot" form="capture-form-fallback">Screenshot</label>
+            </div>
+          </section>
 
+          <!-- Sitemap panel -->
+          <section class="panel panel-sitemap" data-tab="tab-sitemap">
+            <div class="hero"><h1>Sitemap Scan</h1></div>
+            <form action="#" method="get" class="capture-form">
+              <input type="text" name="domain" placeholder="https://example.com" aria-label="Site or sitemap URL" required />
+              <button type="submit" class="btn btn-primary">SCAN</button>
+            </form>
+            <div class="options">
+              <label><input type="checkbox" disabled> Follow robots.txt</label>
+              <label><input type="checkbox" disabled> Limit depth</label>
+              <label><input type="checkbox" disabled> New-only</label>
+            </div>
+          </section>
+
+          <!-- Monitors panel -->
+          <section class="panel panel-monitors" data-tab="tab-monitors">
+            <div class="hero"><h1>Monitors</h1></div>
+            <p class="muted">Create and manage URL change monitors (coming soon).</p>
+          </section>
+
+          <!-- Results panel -->
+          <section class="panel panel-results" data-tab="tab-results">
+            <div class="hero"><h1>Results</h1></div>
+            <p class="muted">Recent captures and scans will appear here.</p>
+          </section>
         </div>
       </section>
+
+      <!-- RIGHT: Details/logs panel -->
+      <aside class="detail-panel">
+        <h3 style="margin:0 0 8px;">Details</h3>
+        <p class="muted">Select a job to view status, logs, and previews.</p>
+      </aside>
     </main>
   </div>
 
