@@ -63,6 +63,35 @@ body {
   gap: 8px;
 }
 
+/* Simple dropdown menu in top bar */
+.menu { position: relative; }
+.menu > summary {
+  list-style: none;
+}
+.menu > summary::-webkit-details-marker { display: none; }
+.menu[open] > summary { opacity: 0.9; }
+.menu .menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 140px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  padding: 6px;
+  z-index: 10;
+}
+.menu .menu-item {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+.menu .menu-item:hover { background: rgba(127,127,127,0.08); }
+
 .content {
   display: grid;
   grid-template-columns: 300px 1fr 320px;

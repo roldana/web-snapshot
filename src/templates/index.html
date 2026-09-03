@@ -11,8 +11,27 @@
     <header class="topbar">
       <div class="brand">[] <span>Snapshot</span></div>
       <nav class="top-actions">
-        <button id="themeToggle" class="btn btn-ghost" type="button">D/L</button>
-        <a class="btn btn-ghost" href="{{ url_for('about') }}">About</a>
+        <!-- Tab shortcuts -->
+        <label for="tab-capture" class="btn btn-ghost" title="Go to Capture">Capture</label>
+        <label for="tab-sitemap" class="btn btn-ghost" title="Go to Sitemap">Sitemap</label>
+        <label for="tab-monitors" class="btn btn-ghost" title="Go to Monitors">Monitors</label>
+        <label for="tab-results" class="btn btn-ghost" title="Go to Results">Results</label>
+
+        <!-- Spacer -->
+        <span style="flex:1"></span>
+
+        <!-- Quick actions -->
+        <label for="tab-capture" class="btn btn-primary" title="Start a new capture">New Capture</label>
+        <button id="themeToggle" class="btn btn-ghost" type="button" title="Toggle theme">D/L</button>
+
+        <!-- Simple dropdown using <details> -->
+        <details class="menu">
+          <summary class="btn btn-ghost" title="More options">More</summary>
+          <div class="menu-list">
+            <a class="menu-item" href="/">Refresh</a>
+            <a class="menu-item" href="{{ url_for('about') }}">About</a>
+          </div>
+        </details>
       </nav>
     </header>
 
@@ -79,6 +98,7 @@
                 name="url"
                 placeholder="https://example.com"
                 aria-label="Website URL"
+                id="url-input"
                 required
               />
               <button type="submit" class="btn btn-primary">RUN</button>
