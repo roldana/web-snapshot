@@ -50,7 +50,7 @@ def normalize_base(url: str) -> str:
 
 def fetch(url: str, timeout: float = 10.0) -> tuple[int, dict[str, str], bytes]:
     try:
-        r = requests.get(url, timeout=timeout, allow_redirects=True, headers={"User-Agent": "web-snapshot-sitemap/1.0"})
+        r = requests.get(url, timeout=timeout, allow_redirects=True, headers={"User-Agent": "snap/1.1"})
         return r.status_code, r.headers, r.content
     except requests.RequestException:
         return 0, {}, b""

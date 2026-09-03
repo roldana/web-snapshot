@@ -2,7 +2,7 @@ import os
 import hashlib
 import urllib.parse
 import logging
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError, sync_playwright
 import json
 import re
 import datetime
@@ -11,6 +11,7 @@ VIEWPORT_WIDTH = 1920
 VIEWPORT_HEIGHT = 1080
 FULL_SCREENSHOT = True
 CAPTURE_HEIGHT = 6000
+PAGE_LOAD_TIMEOUT_MS = 90000
 SNAPSHOT_DIR = "data/snapshots"
 SCREENSHOT_DIR = "screenshots"
 HTML_DIR = "html"
@@ -117,8 +118,26 @@ def capture_urls(url_list):
                     print(f"\n[INFO] Handling URL: {url}")
                     try:
                         page = context.new_page()
-                        page.goto(url)
-                        page.wait_for_load_state("networkidle", timeout=60000)
+                        try:
+                            page.goto(url, timeout=PAGE_LOAD_TIMEOUT_MS)
+                        except PlaywrightTimeoutError:
+                            logging.warning(
+                                "Timed out waiting for page load after %s ms for %s; continuing with capture steps",
+                                PAGE_LOAD_TIMEOUT_MS,
+                                url,
+                            )
+                            print(
+                                f"[WARN] Page load timed out after {PAGE_LOAD_TIMEOUT_MS // 1000} seconds; "
+                                "continuing with capture steps."
+                            )
+                        except PlaywrightError as e:
+                            if "ERR_HTTP2_PROTOCOL_ERROR" not in str(e):
+                                raise
+                            logging.warning(
+                                "HTTP/2 protocol error while loading %s; continuing with capture steps",
+                                url,
+                            )
+                            print("[WARN] HTTP/2 protocol error during page load; continuing with capture steps.")
 
                         page.wait_for_timeout(1000)
                         # Scroll to the bottom of the page to trigger lazy load
