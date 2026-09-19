@@ -32,6 +32,22 @@ services:
       - api
     command: python3 src/web_app.py
     restart: unless-stopped
+  scheduler:
+    image: web-snapshot-app:local
+    container_name: web_snapshot_scheduler
+    user: "${UID}:${GID}"
+    environment:
+      WEB_SNAPSHOT_API: http://api:5000
+      DB_PATH: /app/data/app.db
+      PYTHONUNBUFFERED: "1"
+      HOME: /tmp
+    volumes:
+      - ./src:/app/src:rw
+      - ./data:/app/data:rw
+    depends_on:
+      - api
+    command: python3 src/scheduler.py
+    restart: unless-stopped
   capture_once:
     image: web-snapshot-app:local
     user: "${UID}:${GID}"
